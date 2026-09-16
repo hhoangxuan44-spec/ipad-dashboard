@@ -2,11 +2,12 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
+  <!-- 禁止缩放，完美适配屏幕 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <!-- 允许全屏 WebApp 模式运行（隐藏 Safari 顶底栏） -->
+  <!-- 允许全屏 WebApp 模式运行 -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Clock</title>
+  <title>Focus Dashboard</title>
   
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -17,35 +18,51 @@
       font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
       height: 100vh;
       width: 100vw;
-      /* 放弃 flex，使用相对定位作为基准，确保在老旧 iOS 上不会乱跑 */
       position: relative;
       overflow: hidden;
       -webkit-user-select: none;
+      /* 防止 iOS 点击输入框时出现灰色半透明遮罩 */
+      -webkit-tap-highlight-color: transparent; 
     }
-    
-    .clock-card {
-      /* 使用绝对定位进行屏幕居中，这是 iOS 8 最稳定的居中方式 */
+
+    .panel-left {
       position: absolute;
-      top: 50%;
+      top: 0;
+      left: 0;
+      width: 50%;
+      height: 100%;
+      border-right: 1px solid #1a1a1a; /* 微弱的分界线 */
+    }
+
+    .panel-right {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 50%;
+      height: 100%;
+      padding: 40px;
+    }
+
+    .clock-container {
+      position: absolute;
+      top: 45%;
       left: 50%;
       -webkit-transform: translate(-50%, -50%);
       transform: translate(-50%, -50%);
-      width: 320px;
-      height: 320px;
+      width: 300px;
+      height: 300px;
     }
     
-    /* 动态旋转外环画布 */
     canvas {
       position: absolute;
       top: 0;
       left: 0;
-      width: 320px;
-      height: 320px;
+      width: 300px;
+      height: 300px;
       z-index: 1;
     }
 
-    .text-container {
-      /* 将文字容器独立居中悬浮在 canvas 之上 */
+    .clock-text {
       position: absolute;
       top: 50%;
       left: 50%;
@@ -57,8 +74,7 @@
     }
     
     .time-box {
-      /* 将 rem 转换为固定的 px 像素，增加旧版系统稳定性 */
-      font-size: 76px;
+      font-size: 72px;
       font-weight: 300;
       letter-spacing: -2px;
       line-height: 1;
@@ -68,32 +84,177 @@
       display: inline-block;
       -webkit-transition: opacity 0.3s;
       transition: opacity 0.3s;
-      opacity: 1;
     }
     
     .date-box {
-      margin-top: 14px;
-      font-size: 16px;
+      margin-top: 10px;
+      font-size: 14px;
       color: #888;
       letter-spacing: 2px;
+    }
+
+    .weather-container {
+      position: absolute;
+      bottom: 40px;
+      width: 100%;
+      text-align: center;
+      font-size: 14px;
+      color: #666;
+      letter-spacing: 1px;
+    }
+
+    .countdown-container {
+      margin-bottom: 50px;
+    }
+    .module-title {
+      font-size: 12px;
+      color: #555;
+      letter-spacing: 2px;
       text-transform: uppercase;
+      margin-bottom: 15px;
+    }
+    .countdown-number {
+      font-size: 48px;
+      font-weight: 200;
+    }
+    .countdown-unit {
+      font-size: 16px;
+      color: #888;
+      margin-left: 5px;
+    }
+
+    .todo-container {
+      height: calc(100% - 140px);
+      position: relative;
+    }
+    
+    .todo-list {
+      list-style: none;
+      max-height: 80%;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .todo-item {
+      padding: 15px 0;
+      border-bottom: 1px solid #1a1a1a;
+      font-size: 18px;
+      color: #ccc;
+      position: relative;
+    }
+    
+    .todo-item.completed {
+      color: #444;
+      text-decoration: line-through;
+    }
+    
+    .todo-checkbox {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 1px solid #555;
+      border-radius: 50%;
+      margin-right: 15px;
+      vertical-align: middle;
+      position: relative;
+    }
+    .todo-item.completed .todo-checkbox {
+      background-color: #333;
+      border-color: #333;
+    }
+    
+    .todo-text {
+      vertical-align: middle;
+    }
+
+    .todo-delete {
+      position: absolute;
+      right: 0;
+      top: 15px;
+      color: #444;
+      font-size: 20px;
+      padding: 0 10px;
+    }
+
+    .input-group {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      border-bottom: 1px solid #333;
+    }
+    
+    .todo-input {
+      width: 85%;
+      background: transparent;
+      border: none;
+      color: #ECECEC;
+      font-size: 16px;
+      padding: 10px 0;
+      outline: none;
+      -webkit-appearance: none;
+    }
+    
+    .todo-add-btn {
+      width: 15%;
+      background: transparent;
+      border: none;
+      color: #888;
+      font-size: 24px;
+      float: right;
+      text-align: right;
+      padding: 5px 0;
     }
   </style>
 </head>
 <body>
 
-<div class="clock-card">
-  <canvas id="ring" width="640" height="640"></canvas>
-  <div class="text-container">
-    <div class="time-box">
-      <span id="hours">00</span><span class="colon" id="colon">:</span><span id="mins">00</span>
+  <!-- 左半区：时间与天气 -->
+  <div class="panel-left">
+    <div class="clock-container">
+      <canvas id="ring" width="600" height="600"></canvas>
+      <div class="clock-text">
+        <div class="time-box">
+          <span id="hours">00</span><span class="colon" id="colon">:</span><span id="mins">00</span>
+        </div>
+        <div class="date-box" id="date">JAN 01 · WED</div>
+      </div>
     </div>
-    <div class="date-box" id="date">JAN 01 · WED</div>
+    
+    <div class="weather-container" id="weather">
+      获取天气中...
+    </div>
   </div>
-</div>
+
+  <!-- 右半区：目标与待办 -->
+  <div class="panel-right">
+    
+    <!-- 倒计时 -->
+    <div class="countdown-container">
+      <div class="module-title">距离考研还有</div>
+      <div>
+        <span class="countdown-number" id="countdown-days">--</span>
+        <span class="countdown-unit">天</span>
+      </div>
+    </div>
+
+    <!-- 待办事项 -->
+    <div class="todo-container">
+      <div class="module-title">今日待办 (TO-DO)</div>
+      <ul class="todo-list" id="todo-list">
+        <!-- JS 动态生成 -->
+      </ul>
+      
+      <div class="input-group">
+        <input type="text" id="todo-input" class="todo-input" placeholder="添加新任务...">
+        <div class="todo-add-btn" id="add-btn">+</div>
+      </div>
+    </div>
+
+  </div>
 
 <script>
-  // 保持使用 var，完美兼容 iOS 8 的 ES5 标准
+  // --- 兼容旧版 Webkit 的写法 (完全使用 var 和 function) ---
   var ring = document.getElementById('ring');
   var ctx = ring.getContext('2d');
   var hoursEl = document.getElementById('hours');
@@ -101,60 +262,208 @@
   var colonEl = document.getElementById('colon');
   var dateEl = document.getElementById('date');
 
-  var days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  var daysStr = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
   function pad(n) { return n < 10 ? '0' + n : n; }
 
-  function render() {
+  function renderClock() {
     var now = new Date();
     var ms = now.getMilliseconds();
     var sec = now.getSeconds() + ms / 1000;
     var min = now.getMinutes();
     var hr = now.getHours();
 
-    // 更新数字时钟
     hoursEl.innerText = pad(hr);
     minsEl.innerText = pad(min);
-
-    // 冒号呼吸渐隐动画
     colonEl.style.opacity = (sec % 1 > 0.5) ? '0.2' : '1';
 
-    // 更新日期
-    var month = now.getMonth() + 1;
-    var day = now.getDate();
-    var week = days[now.getDay()];
-    dateEl.innerText = month + '月' + day + '日 · ' + week;
+    var month = pad(now.getMonth() + 1);
+    var day = pad(now.getDate());
+    var week = daysStr[now.getDay()];
+    dateEl.innerText = month + '/' + day + ' · ' + week;
 
-    // 绘制外圈平滑走动的秒针光环 (Canvas 硬件加速)
-    ctx.clearRect(0, 0, 640, 640);
+    // 清空重绘
+    ctx.clearRect(0, 0, 600, 600);
 
-    // 底环灰色轮廓
+    // 底环
     ctx.beginPath();
-    ctx.arc(320, 320, 280, 0, 2 * Math.PI);
-    ctx.strokeStyle = '#181818';
-    ctx.lineWidth = 6;
+    ctx.arc(300, 300, 280, 0, 2 * Math.PI);
+    ctx.strokeStyle = '#111111';
+    ctx.lineWidth = 8;
     ctx.stroke();
 
-    // 动态进度光环
+    // 进度环
     var endAngle = (-0.5 + (sec / 60) * 2) * Math.PI;
     ctx.beginPath();
-    ctx.arc(320, 320, 280, -0.5 * Math.PI, endAngle);
+    ctx.arc(300, 300, 280, -0.5 * Math.PI, endAngle);
     ctx.strokeStyle = '#ECECEC';
-    ctx.lineWidth = 6;
+    ctx.lineWidth = 8;
     ctx.lineCap = 'round';
     ctx.stroke();
 
-    // 兼容写法
     var reqAnimFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame;
     if (reqAnimFrame) {
-      reqAnimFrame(render);
+      reqAnimFrame(renderClock);
     } else {
-      setTimeout(render, 1000 / 60);
+      setTimeout(renderClock, 1000 / 60);
+    }
+  }
+  renderClock();
+
+  // --- 考研倒计时 ---
+  // 这里可以手动修改你的考研日期 (年, 月-1, 日)
+  // 假设 2024 年考研是 12月21日 (月份从 0 开始算，所以填 11)
+  var targetDate = new Date(2024, 11, 21); 
+  
+  function updateCountdown() {
+    var now = new Date();
+    var diffMs = targetDate.getTime() - now.getTime();
+    var cdDaysEl = document.getElementById('countdown-days');
+    
+    if (diffMs > 0) {
+      // 算出天数 (向上取整)
+      var daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      cdDaysEl.innerText = daysLeft;
+    } else {
+      cdDaysEl.innerText = "0";
+      document.querySelector('.module-title').innerText = "考研加油";
+    }
+  }
+  updateCountdown();
+  // 每天更新一次即可，简单起见这里每小时检查一次
+  setInterval(updateCountdown, 1000 * 60 * 60);
+
+  // --- 待办事项 To-Do ---
+  var todoListEl = document.getElementById('todo-list');
+  var todoInput = document.getElementById('todo-input');
+  var addBtn = document.getElementById('add-btn');
+  
+  // 从本地存储读取，如果没有则给初始例子
+  var todos = [];
+  var savedTodos = localStorage.getItem('ipad_todos');
+  if (savedTodos) {
+    try {
+      todos = JSON.parse(savedTodos);
+    } catch(e) {}
+  } else {
+    todos = [
+      { text: "完成政治第一章复习", done: false },
+      { text: "背诵英语单词 50 个", done: true }
+    ];
+  }
+
+  function saveTodos() {
+    localStorage.setItem('ipad_todos', JSON.stringify(todos));
+  }
+
+  function renderTodos() {
+    todoListEl.innerHTML = '';
+    for (var i = 0; i < todos.length; i++) {
+      var item = todos[i];
+      var li = document.createElement('li');
+      li.className = 'todo-item' + (item.done ? ' completed' : '');
+      li.setAttribute('data-index', i);
+      
+      // 使用字符串拼接以兼容老版本
+      li.innerHTML = 
+        '<div class="todo-checkbox"></div>' +
+        '<span class="todo-text">' + item.text + '</span>' +
+        '<div class="todo-delete">×</div>';
+        
+      todoListEl.appendChild(li);
     }
   }
 
-  // 启动渲染
-  render();
+  // 使用事件委托处理点击 (勾选和删除)
+  todoListEl.addEventListener('click', function(e) {
+    var target = e.target;
+    var li = target.parentNode; // 获取父元素 li
+    
+    // 如果点击的是 checkbox 或 text，切换状态
+    if (target.className === 'todo-checkbox' || target.className === 'todo-text') {
+      var index = parseInt(li.getAttribute('data-index'), 10);
+      todos[index].done = !todos[index].done;
+      saveTodos();
+      renderTodos();
+    }
+    
+    // 如果点击的是删除按钮
+    if (target.className === 'todo-delete') {
+      var idx = parseInt(li.getAttribute('data-index'), 10);
+      todos.splice(idx, 1);
+      saveTodos();
+      renderTodos();
+    }
+  });
+
+  function addTodo() {
+    var text = todoInput.value.replace(/^\s+|\s+$/g, ""); // 去除前后空格
+    if (text.length > 0) {
+      todos.push({ text: text, done: false });
+      saveTodos();
+      renderTodos();
+      todoInput.value = '';
+    }
+  }
+
+  addBtn.addEventListener('click', addTodo);
+  todoInput.addEventListener('keypress', function(e) {
+    if (e.keyCode === 13 || e.which === 13) {
+      addTodo();
+    }
+  });
+
+  // 初始化渲染
+  renderTodos();
+
+  // --- 天气 API (使用免费无需 Key 的 Open-Meteo) ---
+  var weatherEl = document.getElementById('weather');
+  // 默认坐标：北京 (可自己修改)
+  var lat = 39.9042;
+  var lon = 116.4074;
+  
+  function fetchWeather() {
+    var xhr = new XMLHttpRequest();
+    // 只请求当前温度和天气代码
+    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&current_weather=true';
+    
+    xhr.open('GET', url, true);
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === 4) {
+        if (xhr.status === 200) {
+          try {
+            var data = JSON.parse(xhr.responseText);
+            var temp = data.current_weather.temperature;
+            var code = data.current_weather.weathercode;
+            var desc = getWeatherDesc(code);
+            weatherEl.innerText = '北京 · ' + temp + '°C · ' + desc;
+          } catch(e) {
+            weatherEl.innerText = '天气解析失败';
+          }
+        } else {
+          weatherEl.innerText = '无法连接天气服务';
+        }
+      }
+    };
+    xhr.send();
+  }
+
+  // WMO 天气代码转换为中文描述 (简单版)
+  function getWeatherDesc(code) {
+    if (code === 0) return '晴朗';
+    if (code === 1 || code === 2 || code === 3) return '多云';
+    if (code >= 45 && code <= 48) return '雾';
+    if (code >= 51 && code <= 67) return '雨';
+    if (code >= 71 && code <= 77) return '雪';
+    if (code >= 80 && code <= 82) return '阵雨';
+    if (code >= 95) return '雷阵雨';
+    return '未知';
+  }
+
+  fetchWeather();
+  // 每 30 分钟刷新一次天气
+  setInterval(fetchWeather, 30 * 60 * 1000);
+
 </script>
 </body>
 </html>
