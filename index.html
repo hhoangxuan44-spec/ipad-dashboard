@@ -1,127 +1,187 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>考研专注屏</title>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <title>The Pure Signal - Zen Mode</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { 
-      background: #000; 
-      color: #fff; 
-      font-family: -apple-system, sans-serif; 
-      overflow: hidden; 
-      -webkit-user-select: none; 
-    }
+    body { background: #000; color: #fff; font-family: "Helvetica Neue", Helvetica, sans-serif; overflow: hidden; -webkit-user-select: none; }
     
-    /* 静态背景图层 */
-    .bg-image {
-      position: absolute; 
-      top: 0; 
-      left: 0; 
-      width: 100vw; 
-      height: 100vh;
-      /* 这里直接引用你上传到 GitHub 的 bg.jpg */
-      background-image: url('./bg.jpg'); 
-      background-size: cover; 
-      background-position: center; 
-      background-repeat: no-repeat;
-      z-index: 1;
-    }
+    /* 内存安全的幻灯片图层 */
+    .bg-layer { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background-size: cover; background-position: center; transition: opacity 2s ease-in-out; opacity: 0; z-index: 1; }
+    .bg-layer.active { opacity: 1; }
+    .overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.5); z-index: 2; }
     
-    /* 黑色半透明遮罩，保证文字清晰 */
-    .overlay { 
-      position: absolute; 
-      top: 0; 
-      left: 0; 
-      width: 100vw; 
-      height: 100vh; 
-      background: rgba(0,0,0,0.35); 
-      z-index: 2; 
-    }
+    /* 时间显示（始终保持） */
+    .time-container { position: absolute; top: 25%; left: 50%; transform: translateX(-50%); text-align: center; width: 100%; z-index: 10; }
+    .time { font-size: 8rem; font-weight: 100; letter-spacing: -2px; line-height: 1; text-shadow: 0 2px 10px rgba(0,0,0,0.5); font-variant-numeric: tabular-nums; }
     
-    /* 内容排版 */
-    .content { 
-      position: absolute; 
-      bottom: 8vh; 
-      left: 6vw; 
-      z-index: 10; 
-      text-shadow: 0 4px 15px rgba(0,0,0,0.8); 
-    }
-    .time { 
-      font-size: 7rem; 
-      font-weight: 700; 
-      letter-spacing: -3px; 
-      line-height: 1; 
-      margin-bottom: 15px; 
-      font-variant-numeric: tabular-nums; 
-    }
-    .date { 
-      font-size: 1.8rem; 
-      color: #7dd3fc; 
-      letter-spacing: 2px; 
-      margin-bottom: 25px; 
-      font-weight: 300; 
-    }
+    /* 容器的平滑过渡效果 */
+    .fade-panel { position: absolute; top: 50%; left: 50%; transform: translateX(-50%); width: 80%; text-align: center; z-index: 10; transition: opacity 2s ease-in-out; }
     
-    .mission { 
-      background: rgba(15, 23, 42, 0.7); 
-      border-left: 5px solid #00e5ff; 
-      padding: 15px 20px; 
-      display: inline-block; 
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5); 
-    }
-    .mission-title { 
-      font-size: 1.3rem; 
-      font-weight: bold; 
-      margin-bottom: 8px; 
-    }
-    .mission-sub { 
-      font-size: 1.1rem; 
-      color: #00e5ff; 
-      letter-spacing: 1px; 
-    }
+    /* 阶段1：倒计时面板 */
+    #phase1 { opacity: 1; }
+    .dash-line { font-size: 1.1rem; font-weight: 300; letter-spacing: 4px; color: #ddd; border: 1px solid rgba(255,255,255,0.3); padding: 12px 24px; border-radius: 4px; display: inline-block; }
+    .highlight { color: #fff; font-weight: 500; }
+
+    /* 阶段2：专注面板 (天气、进度、ToDo) */
+    #phase2 { opacity: 0; pointer-events: none; }
+    
+    /* 小组件样式 */
+    .widget-box { background: rgba(0,0,0,0.3); border-top: 1px solid rgba(255,255,255,0.2); padding: 20px; text-align: left; margin: 0 auto; max-width: 400px; font-weight: 300; }
+    .widget-title { font-size: 0.75rem; letter-spacing: 2px; color: #888; text-transform: uppercase; margin-bottom: 15px; }
+    
+    /* 天气与进度条 */
+    .weather-text { font-size: 1.2rem; margin-bottom: 20px; letter-spacing: 1px; }
+    .progress-bar-bg { width: 100%; height: 2px; background: rgba(255,255,255,0.2); margin-top: 5px; position: relative; }
+    .progress-bar-fill { height: 100%; background: #fff; width: 0%; transition: width 1s ease; }
+    .progress-text { font-size: 0.75rem; color: #888; margin-top: 5px; text-align: right; }
+
+    /* To-Do 列表 */
+    .todo-list { list-style: none; margin-top: 25px; }
+    .todo-list li { font-size: 1rem; margin-bottom: 12px; letter-spacing: 1px; color: #ddd; position: relative; padding-left: 15px; }
+    .todo-list li::before { content: '>'; position: absolute; left: 0; color: #666; }
   </style>
 </head>
 <body>
-  <div class="bg-image"></div>
+
+  <div id="bg1" class="bg-layer active"></div>
+  <div id="bg2" class="bg-layer"></div>
   <div class="overlay"></div>
 
-  <div class="content">
+  <div class="time-container">
     <div class="time" id="timeBox">00:00</div>
-    <div class="date" id="dateBox">加载中...</div>
-    <div class="mission">
-      <div class="mission-title">郑州大学 · 信息与通信工程</div>
-      <div class="mission-sub" id="countdownBox">距初试: 计算中... | 目标: 350+ (专100+)</div>
+  </div>
+
+  <!-- Phase 1: 唤醒期的倒计时 -->
+  <div class="fade-panel" id="phase1">
+    <div class="dash-line" id="countdownBox">
+      TARGET: <span class="highlight">350+</span> | ENG: <span class="highlight">100+</span> | T-MINUS: <span class="highlight">--</span> DAYS
+    </div>
+  </div>
+
+  <!-- Phase 2: 禅定期的专注面板 -->
+  <div class="fade-panel" id="phase2">
+    <div class="widget-box">
+      <!-- 天气组件 -->
+      <div class="widget-title">ENV. STATUS (ZHENGZHOU)</div>
+      <div class="weather-text" id="weatherBox">Fetching Signal...</div>
+      
+      <!-- 扩展组件：今日进度 -->
+      <div class="widget-title" style="margin-top: 25px;">TODAY'S PROGRESS</div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="dayProgress"></div>
+      </div>
+      <div class="progress-text" id="dayProgressText">0%</div>
+
+      <!-- 极客 ToDo 列表 -->
+      <div class="widget-title" style="margin-top: 25px;">OPERATIONAL TASKS</div>
+      <ul class="todo-list" id="todoBox">
+        <!-- JS 动态注入 -->
+      </ul>
     </div>
   </div>
 
   <script>
-    var timeBox = document.getElementById('timeBox');
-    var dateBox = document.getElementById('dateBox');
-    var countBox = document.getElementById('countdownBox');
+    /* =======================================
+       极客配置区：每天早上修改这里 push 上去
+       ======================================= */
+    var myTodos = [
+      "完成数二线性代数核心习题",
+      "精读英二阅读并做逐句词汇拆解",
+      "推进信号与系统专业课重点",
+      "政治知识点框架搭建"
+    ];
+    // 图片序列
+    var images = ['1.jpg', '2.jpg', '3.jpg']; 
+    // =======================================
 
-    var days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-    function pad(n) { return n < 10 ? '0' + n : n; }
-
+    // 1. 时钟与倒计时计算
     function updateTime() {
       var now = new Date();
-      timeBox.innerText = pad(now.getHours()) + ':' + pad(now.getMinutes());
-      dateBox.innerText = now.getFullYear() + '.' + pad(now.getMonth()+1) + '.' + pad(now.getDate()) + ' ' + days[now.getDay()];
-
+      var timeBox = document.getElementById('timeBox');
+      timeBox.innerText = (now.getHours() < 10 ? '0' : '') + now.getHours() + ':' + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
+      
       var exam = new Date(2026, 11, 26);
       var diff = Math.ceil((exam - now) / (1000 * 60 * 60 * 24));
-      if(diff >= 0) {
-        countBox.innerText = '距初试: ' + diff + ' 天 | 目标: 350+ (专100+)';
-      } else {
-        countBox.innerText = '稳住心态，一战成硕！';
-      }
-    }
+      document.getElementById('countdownBox').innerHTML = 'TARGET: <span class="highlight">350+</span> | ENG: <span class="highlight">100+</span> | T-MINUS: <span class="highlight">' + diff + '</span> DAYS';
 
+      // 计算今日进度百分比
+      var startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      var msInDay = 24 * 60 * 60 * 1000;
+      var percent = ((now - startOfDay) / msInDay * 100).toFixed(1);
+      document.getElementById('dayProgress').style.width = percent + '%';
+      document.getElementById('dayProgressText').innerText = percent + '% COMPLETED';
+    }
     updateTime();
     setInterval(updateTime, 1000);
+
+    // 2. 注入 ToDo List
+    var todoHtml = '';
+    for(var i=0; i<myTodos.length; i++) {
+      todoHtml += '<li>' + myTodos[i] + '</li>';
+    }
+    document.getElementById('todoBox').innerHTML = todoHtml;
+
+    // 3. iOS 8 安全的天气获取 (Open-Meteo 免Key，且坐标设定在郑州)
+    function fetchWeather() {
+      var xhr = new XMLHttpRequest();
+      // 郑州坐标：latitude=34.75, longitude=113.62
+      xhr.open('GET', 'https://api.open-meteo.com/v1/forecast?latitude=34.75&longitude=113.62&current_weather=true', true);
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          var data = JSON.parse(xhr.responseText);
+          var temp = data.current_weather.temperature;
+          document.getElementById('weatherBox').innerText = temp + ' °C / SIGNAL NOMINAL';
+        } else {
+          document.getElementById('weatherBox').innerText = 'OFFLINE / LOCAL SENSOR ONLY';
+        }
+      };
+      xhr.onerror = function() {
+        document.getElementById('weatherBox').innerText = 'SECURE OFFLINE MODE';
+      };
+      xhr.send();
+    }
+    fetchWeather();
+    setInterval(fetchWeather, 3600000); // 一小时更新一次
+
+    // 4. 幻灯片双缓冲轮播
+    var currentIndex = 0;
+    var activeLayer = 1;
+    var bg1 = document.getElementById('bg1');
+    var bg2 = document.getElementById('bg2');
+    bg1.style.backgroundImage = 'url(' + images[0] + ')';
+
+    setInterval(function() {
+      currentIndex = (currentIndex + 1) % images.length;
+      var nextImage = 'url(' + images[currentIndex] + ')';
+      if (activeLayer === 1) {
+        bg2.style.backgroundImage = nextImage;
+        bg2.classList.add('active');
+        bg1.classList.remove('active');
+        activeLayer = 2;
+      } else {
+        bg1.style.backgroundImage = nextImage;
+        bg1.classList.add('active');
+        bg2.classList.remove('active');
+        activeLayer = 1;
+      }
+    }, 5000); // 5秒轮播
+
+    // 5. 禅定模式：10秒后倒计时淡出，专注面板淡入
+    setTimeout(function() {
+      document.getElementById('phase1').style.opacity = '0';
+      document.getElementById('phase1').style.pointerEvents = 'none';
+      setTimeout(function() {
+        var phase2 = document.getElementById('phase2');
+        phase2.style.opacity = '1';
+        phase2.style.pointerEvents = 'auto';
+      }, 1500); // 错开一点时间，让过渡更优雅
+    }, 10000); // 测试时可以把 10000 改小点
+
   </script>
 </body>
 </html>
