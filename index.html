@@ -13,8 +13,8 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     
     body {
-      background-color: #050505;
-      color: #ECECEC;
+      background-color: #0d1117; /* 更高级的深蓝灰背景 */
+      color: #E6EDF3;
       font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
       height: 100vh;
       width: 100vw;
@@ -31,7 +31,7 @@
       left: 0;
       width: 50%;
       height: 100%;
-      border-right: 1px solid #1a1a1a; /* 微弱的分界线 */
+      border-right: 1px dashed #30363d; /* 改为虚线分割线增加质感 */
     }
 
     .panel-right {
@@ -78,6 +78,7 @@
       font-weight: 300;
       letter-spacing: -2px;
       line-height: 1;
+      color: #58a6ff; /* 时钟文字加入科技蓝 */
     }
     
     .colon {
@@ -108,14 +109,17 @@
     }
     .module-title {
       font-size: 12px;
-      color: #555;
+      color: #8b949e;
       letter-spacing: 2px;
       text-transform: uppercase;
       margin-bottom: 15px;
+      border-left: 3px solid #ff7b72; /* 标题左侧添加彩色线条修饰 */
+      padding-left: 10px;
     }
     .countdown-number {
       font-size: 48px;
       font-weight: 200;
+      color: #ff7b72; /* 倒计时使用醒目的珊瑚橙 */
     }
     .countdown-unit {
       font-size: 16px;
@@ -144,7 +148,7 @@
     }
     
     .todo-item.completed {
-      color: #444;
+      color: #4a5568;
       text-decoration: line-through;
     }
     
@@ -152,15 +156,15 @@
       display: inline-block;
       width: 20px;
       height: 20px;
-      border: 1px solid #555;
+      border: 2px solid #58a6ff; /* 复选框边框改用科技蓝 */
       border-radius: 50%;
       margin-right: 15px;
       vertical-align: middle;
       position: relative;
     }
     .todo-item.completed .todo-checkbox {
-      background-color: #333;
-      border-color: #333;
+      background-color: #30363d;
+      border-color: #30363d;
     }
     
     .todo-text {
@@ -181,7 +185,7 @@
       bottom: 0;
       left: 0;
       width: 100%;
-      border-bottom: 1px solid #333;
+      border-bottom: 1px solid #30363d; /* 输入框添加底线 */
     }
     
     .todo-input {
@@ -288,7 +292,7 @@
     // 底环
     ctx.beginPath();
     ctx.arc(300, 300, 280, 0, 2 * Math.PI);
-    ctx.strokeStyle = '#111111';
+    ctx.strokeStyle = '#1f242c'; /* 柔和的底环颜色 */
     ctx.lineWidth = 8;
     ctx.stroke();
 
@@ -296,7 +300,7 @@
     var endAngle = (-0.5 + (sec / 60) * 2) * Math.PI;
     ctx.beginPath();
     ctx.arc(300, 300, 280, -0.5 * Math.PI, endAngle);
-    ctx.strokeStyle = '#ECECEC';
+    ctx.strokeStyle = '#58a6ff'; /* 科技蓝进度条 */
     ctx.lineWidth = 8;
     ctx.lineCap = 'round';
     ctx.stroke();
@@ -312,8 +316,8 @@
 
   // --- 考研倒计时 ---
   // 这里可以手动修改你的考研日期 (年, 月-1, 日)
-  // 假设 2024 年考研是 12月21日 (月份从 0 开始算，所以填 11)
-  var targetDate = new Date(2024, 11, 21); 
+  // 修改为 12月19日 (月份从 0 开始算，所以填 11)
+  var targetDate = new Date(2026, 11, 19); 
   
   function updateCountdown() {
     var now = new Date();
@@ -440,6 +444,9 @@
           } catch(e) {
             weatherEl.innerText = '天气解析失败';
           }
+        } else if (xhr.status === 0) {
+          // 状态为 0 通常是旧设备的系统安全证书太老，导致握手失败
+          weatherEl.innerText = '设备系统过旧，受安全证书限制无法连接';
         } else {
           weatherEl.innerText = '无法连接天气服务';
         }
