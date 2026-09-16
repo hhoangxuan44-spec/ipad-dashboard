@@ -1,27 +1,129 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<style>
-  body { background: #111; color: #fff; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-  #time { font-size: 5rem; font-weight: bold; }
-  #countdown { font-size: 2rem; color: #ff5252; margin-top: 15px; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- 允许全屏 WebApp 模式运行（隐藏 Safari 顶底栏） -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Clock</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #050505;
+      color: #ECECEC;
+      font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      -webkit-user-select: none;
+    }
+    .clock-card {
+      position: relative;
+      width: 320px;
+      height: 320px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    /* 动态旋转外环画布 */
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 320px;
+      height: 320px;
+    }
+    .time-box {
+      font-size: 4.8rem;
+      font-weight: 300;
+      letter-spacing: -2px;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .colon {
+      display: inline-block;
+      transition: opacity 0.3s;
+      opacity: 1;
+    }
+    .date-box {
+      margin-top: 14px;
+      font-size: 1.1rem;
+      color: #888;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+  </style>
 </head>
 <body>
-  <div id="time">00:00:00</div>
-  <div id="countdown">计算中...</div>
-  <script>
-    function update() {
-      var now = new Date();
-      document.getElementById('time').innerText = now.toTimeString().split(' ')[0];
-      var target = new Date('2026-12-26'); // 设定你的目标日期
-      var diff = Math.ceil((target - now) / (1000 * 60 * 60 * 24));
-      document.getElementById('countdown').innerText = '距离目标还有 ' + diff + ' 天';
-    }
-    setInterval(update, 1000);
-    update();
-  </script>
+
+<div class="clock-card">
+  <canvas id="ring" width="640" height="640"></canvas>
+  <div class="time-box">
+    <span id="hours">00</span><span class="colon" id="colon">:</span><span id="mins">00</span>
+  </div>
+  <div class="date-box" id="date">JAN 01 · WED</div>
+</div>
+
+<script>
+  var ring = document.getElementById('ring');
+  var ctx = ring.getContext('2d');
+  var hoursEl = document.getElementById('hours');
+  var minsEl = document.getElementById('mins');
+  var colonEl = document.getElementById('colon');
+  var dateEl = document.getElementById('date');
+
+  var days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+  function pad(n) { return n < 10 ? '0' + n : n; }
+
+  function render() {
+    var now = new Date();
+    var ms = now.getMilliseconds();
+    var sec = now.getSeconds() + ms / 1000;
+    var min = now.getMinutes();
+    var hr = now.getHours();
+
+    // 更新数字时钟
+    hoursEl.innerText = pad(hr);
+    minsEl.innerText = pad(min);
+
+    // 冒号呼吸渐隐动画
+    colonEl.style.opacity = (sec % 1 > 0.5) ? '0.2' : '1';
+
+    // 更新日期
+    var month = now.getMonth() + 1;
+    var day = now.getDate();
+    var week = days[now.getDay()];
+    dateEl.innerText = month + '月' + day + '日 · ' + week;
+
+    // 绘制外圈平滑走动的秒针光环 (Canvas 硬件加速)
+    ctx.clearRect(0, 0, 640, 640);
+
+    // 底环灰色轮廓
+    ctx.beginPath();
+    ctx.arc(320, 320, 280, 0, 2 * Math.PI);
+    ctx.strokeStyle = '#181818';
+    ctx.lineWidth = 6;
+    ctx.stroke();
+
+    // 动态进度光环
+    var endAngle = (-0.5 + (sec / 60) * 2) * Math.PI;
+    ctx.beginPath();
+    ctx.arc(320, 320, 280, -0.5 * Math.PI, endAngle);
+    ctx.strokeStyle = '#ECECEC';
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    requestAnimationFrame(render);
+  }
+
+  requestAnimationFrame(render);
+</script>
 </body>
 </html>
