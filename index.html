@@ -2,448 +2,165 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <!-- 禁止缩放，完美适配屏幕 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <!-- 允许全屏 WebApp 模式运行 -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Focus Dashboard</title>
-  
+  <title>Focus Terminal</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * { -webkit-box-sizing: border-box; box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; background-color: #000; overflow: hidden; }
     
     body {
-      /* 修改为读取同目录下的 bg.jpg */
-      background: #000 url('bg.jpg') no-repeat center center;
-      background-size: cover;
-      font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
-      height: 100vh;
-      width: 100vw;
-      position: relative;
-      overflow: hidden;
-      -webkit-user-select: none;
-      -webkit-tap-highlight-color: transparent; 
+      color: #00ff00;
+      font-family: "Courier New", Courier, monospace;
+      -webkit-user-select: none; user-select: none;
     }
 
-    /* 添加一层微弱的全局暗色遮罩，保证白色文字可读 */
-    .bg-overlay {
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background-color: rgba(0, 0, 0, 0.25);
+    /* 像素点阵锐利化 */
+    .pixelated {
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: pixelated;
+    }
+
+    /* 静态背景层：支持无缝平铺或全屏拉伸 */
+    #bg-layer {
+      position: absolute; top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background-image: url('bg.png'); /* 你的背景图 */
+      background-size: cover; /* 如果是小砖块平铺，可以改成: repeat; background-size: auto; */
+      background-position: center;
+      opacity: 0.35; /* 压暗背景，突出核心时钟 */
       z-index: 1;
     }
 
-    .main-container {
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      z-index: 2;
+    /* CRT 监视器复古扫描线与暗角滤镜 */
+    #crt-filter {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 50;
+      pointer-events: none;
+      background: 
+        -webkit-linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%),
+        -webkit-radial-gradient(center, ellipse cover, rgba(0,0,0,0) 50%, rgba(0,0,0,0.7) 100%);
+      background-size: 100% 4px, 100% 100%;
     }
 
-    .panel-left {
-      position: absolute;
-      top: 0;
-      left: 5%;
-      width: 45%;
-      height: 100%;
-      padding-top: 10%;
+    /* 核心数据 UI 层 */
+    #ui-layer {
+      position: relative; z-index: 10;
+      width: 100%; height: 100%;
+      display: -webkit-box; display: -webkit-flex; display: flex;
+      -webkit-box-orient: vertical; -webkit-box-direction: normal; -webkit-flex-direction: column; flex-direction: column;
+      -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
+      -webkit-box-align: center; -webkit-align-items: center; align-items: center;
+    }
+    #time-display {
+      font-size: 24vw; font-weight: bold; letter-spacing: -2px; line-height: 1;
+      text-shadow: 0 0 12px rgba(0, 255, 0, 0.4);
+      -webkit-transition: color 0.5s, text-shadow 0.5s;
+    }
+    #target-display {
+      position: absolute; bottom: 10%; font-size: 3.5vw; color: #555; letter-spacing: 2px;
     }
 
-    .digital-clock {
-      color: #FFFFFF;
-      text-shadow: 0 4px 15px rgba(0,0,0,0.3); /* 增加文字阴影防看不清 */
-    }
-
-    .time-text {
-      font-size: 110px;
-      font-weight: 100;
-      letter-spacing: -3px;
-      line-height: 1;
-      margin-bottom: 10px;
-    }
-
-    .date-text {
-      font-size: 20px;
-      font-weight: 300;
-      letter-spacing: 2px;
-      opacity: 0.9;
-    }
-
-    /* 玻璃拟物化小组件 */
-    .widgets-row {
-      margin-top: 50px;
-      width: 80%;
-    }
-
-    .widget-card {
-      background-color: rgba(20, 20, 20, 0.4);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 16px;
-      padding: 15px 20px;
-      margin-bottom: 20px;
-      color: #FFF;
-    }
-
-    .widget-title {
-      font-size: 12px;
-      color: rgba(255, 255, 255, 0.6);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 8px;
-    }
-
-    .countdown-val { font-size: 32px; font-weight: 300; color: #ff7b72; }
-    .countdown-unit { font-size: 14px; opacity: 0.8; margin-left: 4px; }
-    
-    .weather-val { font-size: 18px; font-weight: 300; }
-
-    .panel-right {
-      position: absolute;
-      top: 8%;
-      right: 5%;
-      width: 40%;
-      height: 84%; /* 留出上下边距 */
-    }
-
-    .todo-app {
-      background-color: rgba(250, 250, 252, 0.92); /* 苹果提醒事项类似的半透明亮色 */
-      border-radius: 20px;
-      width: 100%;
-      height: 100%;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .todo-header {
-      padding: 25px 25px 15px 25px;
-      border-bottom: 1px solid rgba(0,0,0,0.05);
-    }
-
-    .todo-header h2 {
-      font-size: 28px;
-      font-weight: 600;
-      color: #1c1c1e; /* 深邃黑 */
-    }
-
-    .todo-list-wrap {
-      height: calc(100% - 140px);
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-      padding: 0 25px;
-    }
-
-    .todo-list {
-      list-style: none;
-      padding-top: 10px;
-    }
-
-    .todo-item {
-      padding: 16px 0;
-      border-bottom: 1px solid rgba(0,0,0,0.06);
-      font-size: 17px;
-      color: #333333;
-      position: relative;
-    }
-
-    .todo-item:last-child {
-      border-bottom: none;
-    }
-
-    .todo-checkbox {
-      display: inline-block;
-      width: 22px;
-      height: 22px;
-      border: 2px solid #c7c7cc; /* 未完成时的灰色圆圈 */
-      border-radius: 50%;
-      margin-right: 12px;
-      vertical-align: middle;
-      position: relative;
-      background-color: transparent;
-    }
-
-    .todo-item.completed {
-      color: #aeaeb2; /* 苹果风格的浅灰 */
-    }
-
-    .todo-item.completed .todo-text {
-      text-decoration: line-through;
-    }
-
-    .todo-item.completed .todo-checkbox {
-      background-color: #007aff; /* 苹果蓝 */
-      border-color: #007aff;
-    }
-    
-    /* 简单的纯CSS打勾图标 */
-    .todo-item.completed .todo-checkbox::after {
-      content: '';
-      position: absolute;
-      left: 6px;
-      top: 3px;
-      width: 4px;
-      height: 10px;
-      border: solid white;
-      border-width: 0 2px 2px 0;
-      -webkit-transform: rotate(45deg);
-      transform: rotate(45deg);
-    }
-
-    .todo-text { vertical-align: middle; }
-
-    .todo-delete {
-      position: absolute;
-      right: 0;
-      top: 16px;
-      color: #ff3b30; /* 苹果红 */
-      font-size: 22px;
-      line-height: 1;
-      padding: 0 5px;
-    }
-
-    .input-section {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      background-color: rgba(250, 250, 252, 0.95);
-      padding: 15px 25px 25px 25px;
-      border-top: 1px solid rgba(0,0,0,0.05);
-    }
-
-    .todo-input {
-      width: 80%;
-      background: transparent;
-      border: none;
-      color: #1c1c1e;
-      font-size: 17px;
-      padding: 10px 0;
-      outline: none;
-      -webkit-appearance: none;
-    }
-    
-    /* 修改默认的 placeholder 颜色 */
-    .todo-input::-webkit-input-placeholder { color: #aeaeb2; }
-
-    .todo-add-btn {
-      width: 18%;
-      background: transparent;
-      border: none;
-      color: #007aff; /* 按钮使用苹果蓝 */
-      font-size: 17px;
-      font-weight: 600;
-      float: right;
-      text-align: right;
-      padding: 10px 0;
-    }
+    /* 隐形三等分物理按键区 */
+    .touch-zone { position: absolute; top: 0; height: 100%; z-index: 100; }
+    #zone-wave { left: 0; width: 33.3%; }
+    #zone-clock { left: 33.3%; width: 33.4%; }
+    #zone-rain { right: 0; width: 33.3%; }
   </style>
 </head>
 <body>
 
-  <!-- 暗色遮罩 -->
-  <div class="bg-overlay"></div>
+  <!-- 音频通道 -->
+  <audio id="bg-audio" loop></audio>
 
-  <div class="main-container">
-    <!-- 左半区：时间与组件 -->
-    <div class="panel-left">
-      <div class="digital-clock">
-        <div class="time-text" id="time-display">00:00</div>
-        <div class="date-text" id="date-display">1月1日 周一</div>
-      </div>
-      
-      <div class="widgets-row">
-        <!-- 倒计时卡片 -->
-        <div class="widget-card">
-          <div class="widget-title">距离 27考研 还有</div>
-          <div>
-            <span class="countdown-val" id="cd-days">--</span>
-            <span class="countdown-unit">天</span>
-          </div>
-        </div>
-        
-        <!-- 天气卡片 -->
-        <div class="widget-card">
-          <div class="widget-title">城市天气 (环境较旧可能离线)</div>
-          <div class="weather-val" id="weather-info">加载中...</div>
-        </div>
-      </div>
-    </div>
+  <!-- 视觉渲染层 -->
+  <div id="bg-layer" class="pixelated"></div>
+  <div id="crt-filter"></div>
 
-    <!-- 右半区：To-Do 软件风格 -->
-    <div class="panel-right">
-      <div class="todo-app">
-        <div class="todo-header">
-          <h2>今日任务</h2>
-        </div>
-        
-        <div class="todo-list-wrap">
-          <ul class="todo-list" id="todo-list">
-            <!-- JS 动态生成 -->
-          </ul>
-        </div>
-        
-        <div class="input-section">
-          <input type="text" id="todo-input" class="todo-input" placeholder="准备做什么？">
-          <div class="todo-add-btn" id="add-btn">添加</div>
-        </div>
-      </div>
-    </div>
+  <!-- UI 界面 -->
+  <div id="ui-layer">
+    <div id="time-display">00:00</div>
+    <div id="target-display">TARGET: 350+ | 专业课: 100+</div>
   </div>
 
-<script>
-  var timeEl = document.getElementById('time-display');
-  var dateEl = document.getElementById('date-display');
-  var daysArr = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  <!-- 触控交互区 -->
+  <div id="zone-wave" class="touch-zone"></div>
+  <div id="zone-clock" class="touch-zone"></div>
+  <div id="zone-rain" class="touch-zone"></div>
 
-  function pad(n) { return n < 10 ? '0' + n : n; }
+  <script>
+    var STATE = 'CLOCK';
+    var FOCUS_TIME = 45 * 60; // 45分钟专注
+    var clockTimer = null, focusTimer = null;
+    var displayEl = document.getElementById('time-display');
+    var audioEl = document.getElementById('bg-audio');
 
-  function updateClock() {
-    var now = new Date();
-    var hr = now.getHours();
-    var min = now.getMinutes();
-    
-    // 只更新时间，取消了秒数的频繁跳动，更安静
-    timeEl.innerText = pad(hr) + ':' + pad(min);
+    function pad(num) { return ('0' + num).slice(-2); }
 
-    var month = now.getMonth() + 1;
-    var day = now.getDate();
-    var week = daysArr[now.getDay()];
-    dateEl.innerText = month + '月' + day + '日 ' + week;
-  }
-  // 每秒更新一次即可
-  setInterval(updateClock, 1000);
-  updateClock();
+    function startClock() {
+      STATE = 'CLOCK';
+      if (focusTimer) clearInterval(focusTimer);
+      displayEl.style.color = '#00ff00';
+      displayEl.style.textShadow = '0 0 12px rgba(0, 255, 0, 0.4)';
+      audioEl.pause();
 
-  // 考研倒计时 (目标：2026年12月19日。月份11代表12月)
-  var targetDate = new Date(2026, 11, 19); 
-  
-  function updateCountdown() {
-    var now = new Date();
-    var diffMs = targetDate.getTime() - now.getTime();
-    var cdDaysEl = document.getElementById('cd-days');
-    
-    if (diffMs > 0) {
-      var daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-      cdDaysEl.innerText = daysLeft;
-    } else {
-      cdDaysEl.innerText = "0";
-    }
-  }
-  updateCountdown();
-  setInterval(updateCountdown, 1000 * 60 * 60);
-
-  var todoListEl = document.getElementById('todo-list');
-  var todoInput = document.getElementById('todo-input');
-  var addBtn = document.getElementById('add-btn');
-  
-  var todos = [];
-  var savedTodos = localStorage.getItem('ipad_todos_v2');
-  if (savedTodos) {
-    try {
-      todos = JSON.parse(savedTodos);
-    } catch(e) {}
-  } else {
-    // 默认示例
-    todos = [
-      { text: "完成政治第一章复习", done: false },
-      { text: "背诵英语单词 50 个", done: true }
-    ];
-  }
-
-  function saveTodos() {
-    localStorage.setItem('ipad_todos_v2', JSON.stringify(todos));
-  }
-
-  function renderTodos() {
-    todoListEl.innerHTML = '';
-    for (var i = 0; i < todos.length; i++) {
-      var item = todos[i];
-      var li = document.createElement('li');
-      li.className = 'todo-item' + (item.done ? ' completed' : '');
-      li.setAttribute('data-index', i);
-      
-      // 使用经典的 DOM 拼接防错
-      li.innerHTML = 
-        '<div class="todo-checkbox"></div>' +
-        '<span class="todo-text">' + item.text + '</span>' +
-        '<div class="todo-delete">×</div>';
-        
-      todoListEl.appendChild(li);
-    }
-  }
-
-  // 事件委托处理点击
-  todoListEl.addEventListener('click', function(e) {
-    var target = e.target;
-    var li = target.parentNode; 
-    
-    if (target.className === 'todo-checkbox' || target.className === 'todo-text') {
-      var index = parseInt(li.getAttribute('data-index'), 10);
-      todos[index].done = !todos[index].done;
-      saveTodos();
-      renderTodos();
-    }
-    
-    if (target.className === 'todo-delete') {
-      var idx = parseInt(li.getAttribute('data-index'), 10);
-      todos.splice(idx, 1);
-      saveTodos();
-      renderTodos();
-    }
-  });
-
-  function addTodo() {
-    var text = todoInput.value.replace(/^\s+|\s+$/g, "");
-    if (text.length > 0) {
-      todos.push({ text: text, done: false });
-      saveTodos();
-      renderTodos();
-      todoInput.value = '';
-    }
-  }
-
-  addBtn.addEventListener('click', addTodo);
-  todoInput.addEventListener('keypress', function(e) {
-    if (e.keyCode === 13 || e.which === 13) {
-      addTodo();
-      // 在 iPad 上按回车后收起键盘
-      todoInput.blur();
-    }
-  });
-
-  renderTodos();
-
-  var weatherInfo = document.getElementById('weather-info');
-  var lat = 39.9042; // 北京
-  var lon = 116.4074;
-  
-  function fetchWeather() {
-    var xhr = new XMLHttpRequest();
-    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&current_weather=true';
-    
-    xhr.open('GET', url, true);
-    xhr.onreadystatechange = function() {
-      if (xhr.readyState === 4) {
-        if (xhr.status === 200) {
-          try {
-            var data = JSON.parse(xhr.responseText);
-            var temp = data.current_weather.temperature;
-            weatherInfo.innerText = '北京 · ' + temp + '°C';
-          } catch(e) {
-            weatherInfo.innerText = '解析异常';
-          }
-        } else if (xhr.status === 0) {
-          // iPad mini 1 常受限于 TLS 证书问题
-          weatherInfo.innerText = '本地离线模式';
-        } else {
-          weatherInfo.innerText = '网络请求失败';
-        }
+      function tick() {
+        var now = new Date();
+        displayEl.innerText = pad(now.getHours()) + ':' + pad(now.getMinutes());
       }
-    };
-    xhr.send();
-  }
+      tick();
+      clockTimer = setInterval(tick, 1000);
+    }
 
-  fetchWeather();
+    function startFocus(mode) {
+      if (clockTimer) clearInterval(clockTimer);
+      if (focusTimer) clearInterval(focusTimer);
+      STATE = mode;
+      var secondsLeft = FOCUS_TIME;
+      
+      // 专注模式切换为冷白光
+      displayEl.style.color = '#ffffff';
+      displayEl.style.textShadow = '0 0 18px rgba(255, 255, 255, 0.4)';
+      
+      if (mode === 'WAVE') {
+        audioEl.src = 'wave.mp3';
+      } else {
+        audioEl.src = 'rain.mp3';
+      }
+      audioEl.play();
 
-</script>
+      function tickDown() {
+        var m = Math.floor(secondsLeft / 60);
+        var s = secondsLeft % 60;
+        displayEl.innerText = pad(m) + ':' + pad(s);
+        
+        if (secondsLeft <= 0) {
+          clearInterval(focusTimer);
+          audioEl.src = 'alarm.mp3';
+          audioEl.loop = false;
+          audioEl.play();
+          setTimeout(startClock, 3000); 
+        }
+        secondsLeft--;
+      }
+      tickDown();
+      focusTimer = setInterval(tickDown, 1000);
+    }
+
+    // 绑定触控
+    document.getElementById('zone-wave').addEventListener('touchend', function(e) {
+      e.preventDefault(); if (STATE !== 'WAVE') startFocus('WAVE');
+    });
+    document.getElementById('zone-rain').addEventListener('touchend', function(e) {
+      e.preventDefault(); if (STATE !== 'RAIN') startFocus('RAIN');
+    });
+    document.getElementById('zone-clock').addEventListener('touchend', function(e) {
+      e.preventDefault(); if (STATE !== 'CLOCK') startClock();
+    });
+
+    startClock();
+  </script>
 </body>
 </html>
